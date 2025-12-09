@@ -3,12 +3,8 @@ FROM apache/superset:latest
 # Switch to root to install packages
 USER root
 
-# Install PostgreSQL driver and other database drivers
-RUN pip install --no-cache-dir \
-    psycopg2-binary \
-    sqlalchemy-redshift \
-    mysqlclient \
-    cx_Oracle
+# Install PostgreSQL driver
+RUN pip install --no-cache-dir psycopg2-binary
 
 # Копируем скрипт инициализации
 COPY superset_init.sh /app/superset_init.sh
