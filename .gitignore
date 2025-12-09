@@ -1,0 +1,4 @@
+superset_home/
+*.pyc
+__pycache__/
+.env
