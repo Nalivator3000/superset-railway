@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Установка psycopg2-binary если его нет
-pip install --no-cache-dir psycopg2-binary || true
+# Установка psycopg2-binary в virtualenv
+/app/.venv/bin/pip install --no-cache-dir psycopg2-binary || true
 
 # Инициализация БД
 superset db upgrade
