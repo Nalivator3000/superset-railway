@@ -3,6 +3,10 @@ FROM apache/superset:latest
 # Switch to root to install packages
 USER root
 
+# Copy requirements and install
+COPY requirements-local.txt /app/requirements-local.txt
+RUN pip install --no-cache-dir -r /app/requirements-local.txt
+
 # Копируем конфигурацию и скрипт инициализации
 COPY superset_config.py /app/superset_config.py
 COPY superset_init.sh /app/superset_init.sh
