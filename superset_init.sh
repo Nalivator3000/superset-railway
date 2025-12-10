@@ -14,5 +14,6 @@ superset fab create-admin \
 # Инициализируем Superset
 superset init
 
-# Запускаем сервер
-superset run -h 0.0.0.0 -p 8088 --with-threads --reload --debugger
+# Запускаем сервер (Railway использует PORT env variable или 8080 по умолчанию)
+PORT=${PORT:-8080}
+superset run -h 0.0.0.0 -p $PORT --with-threads --reload --debugger
