@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Установка psycopg2-binary если его нет
+pip install --no-cache-dir psycopg2-binary || true
+
 # Инициализация БД
 superset db upgrade
 

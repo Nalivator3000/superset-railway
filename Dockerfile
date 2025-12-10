@@ -3,9 +3,6 @@ FROM apache/superset:latest
 # Switch to root to install packages
 USER root
 
-# Install PostgreSQL driver into Superset's virtualenv
-RUN /app/.venv/bin/pip install --no-cache-dir psycopg2-binary
-
 # Копируем конфигурацию и скрипт инициализации
 COPY superset_config.py /app/superset_config.py
 COPY superset_init.sh /app/superset_init.sh
