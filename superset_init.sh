@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Set SECRET_KEY environment variable for Superset
+export SECRET_KEY="${SUPERSET_SECRET_KEY}"
+
 # Инициализация БД
 superset db upgrade
 
