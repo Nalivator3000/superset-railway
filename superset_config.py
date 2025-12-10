@@ -7,12 +7,9 @@ SECRET_KEY = os.environ.get('SUPERSET_SECRET_KEY', 'gU484SWDdzlHawI3F5E0NywcX7zu
 print(f"DEBUG: SECRET_KEY source: {'env' if os.environ.get('SUPERSET_SECRET_KEY') else 'hardcoded'}")
 print(f"DEBUG: SECRET_KEY length: {len(SECRET_KEY)}")
 
-# Database configuration - use PostgreSQL for Superset metadata
-# This is the internal database for Superset itself (users, dashboards, etc.)
-SQLALCHEMY_DATABASE_URI = os.environ.get(
-    'DATABASE_URL',
-    'postgresql://postgres:IISHGBQYJUSWMlXMimUGWYJXpMyFaTXb@nozomi.proxy.rlwy.net:47500/railway'
-)
+# Database configuration - use in-memory SQLite for Superset metadata
+# Note: This means metadata will be lost on restart, but it's ok for Railway
+SQLALCHEMY_DATABASE_URI = 'sqlite:////tmp/superset.db'
 
 # Disable CSRF for easier setup (optional, can be removed for production)
 WTF_CSRF_ENABLED = True
