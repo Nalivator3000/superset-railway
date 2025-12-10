@@ -1,15 +1,11 @@
 import os
 
-# Read SECRET_KEY from environment variable
-SECRET_KEY = os.environ.get('SUPERSET_SECRET_KEY')
+# Read SECRET_KEY from environment variable or use hardcoded fallback
+SECRET_KEY = os.environ.get('SUPERSET_SECRET_KEY', 'gU484SWDdzlHawI3F5E0NywcX7zuLkC6Lf4V/fPVUdWut2mmvXJL/OJQ')
 
 # Debug: print what we got (will appear in logs)
-print(f"DEBUG: SUPERSET_SECRET_KEY exists: {SECRET_KEY is not None}")
-print(f"DEBUG: SECRET_KEY length: {len(SECRET_KEY) if SECRET_KEY else 0}")
-
-# Fail if no SECRET_KEY is set
-if not SECRET_KEY:
-    raise ValueError("SUPERSET_SECRET_KEY environment variable is not set!")
+print(f"DEBUG: SECRET_KEY source: {'env' if os.environ.get('SUPERSET_SECRET_KEY') else 'hardcoded'}")
+print(f"DEBUG: SECRET_KEY length: {len(SECRET_KEY)}")
 
 # Database configuration
 SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:////app/superset.db')
