@@ -6,9 +6,13 @@ USER root
 # Install PostgreSQL driver
 RUN pip install --no-cache-dir psycopg2-binary
 
-# Копируем скрипт инициализации
+# Копируем конфигурацию и скрипт инициализации
+COPY superset_config.py /app/superset_config.py
 COPY superset_init.sh /app/superset_init.sh
 RUN chmod +x /app/superset_init.sh
+
+# Устанавливаем путь к конфигу
+ENV SUPERSET_CONFIG_PATH=/app/superset_config.py
 
 # Switch back to superset user
 USER superset
