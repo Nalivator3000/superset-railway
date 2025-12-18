@@ -95,9 +95,30 @@ cd /app
 # Run Superset commands
 # Note: Running as root for simplicity. For production, consider switching to superset user.
 echo "Running Superset initialization..."
+
+# Apply database migrations
 superset db upgrade || true
-superset fab create-admin --username admin --firstname Admin --lastname User --email admin@ubidex.com --password admin || true
+
+# Create or update admin user using environment variables
+ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+ADMIN_FIRSTNAME=${ADMIN_FIRSTNAME:-Admin}
+ADMIN_LASTNAME=${ADMIN_LASTNAME:-User}
+ADMIN_EMAIL=${ADMIN_EMAIL:-admin@ubidex.com}
+ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+
+echo "Creating/updating admin user: ${ADMIN_USERNAME}"
+superset fab create-admin \
+  --username "${ADMIN_USERNAME}" \
+  --firstname "${ADMIN_FIRSTNAME}" \
+  --lastname "${ADMIN_LASTNAME}" \
+  --email "${ADMIN_EMAIL}" \
+  --password "${ADMIN_PASSWORD}" \
+  --force || true
+
+# Initialize default roles, perms, etc.
 superset init || true
+
+# Register external databases (Ubidex Events DB etc.)
 python3 /app/superset_init.py || true
 
 # Start Superset

@@ -1,28 +1,20 @@
-FROM python:3.11-slim
+FROM apache/superset:latest
 
-WORKDIR /app
+USER root
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Copy Superset configuration and initialization scripts
+COPY superset_config.py /app/superset_config.py
+COPY superset_init.py /app/superset_init.py
+COPY superset-entrypoint.sh /app/superset-entrypoint.sh
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Ensure entrypoint is executable
+RUN chmod +x /app/superset-entrypoint.sh
 
-# Copy application code
-COPY 07_scripts/ ./scripts/
-COPY README.md .
+# Superset configuration path
+ENV SUPERSET_CONFIG_PATH=/app/superset_config.py
 
-# Create directories for database and output
-RUN mkdir -p /data /app/output
+# Expose Superset port
+EXPOSE 8088
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV DB_PATH=/data/events.db
-
-# Default command (can be overridden in docker-compose)
-CMD ["python", "--version"]
-
+# Use custom entrypoint that installs psycopg2 and runs Superset
+ENTRYPOINT ["/bin/bash", "/app/superset-entrypoint.sh"]
