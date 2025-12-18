@@ -6,12 +6,14 @@ import os
 # Database connection for Superset metadata
 SQLALCHEMY_DATABASE_URI = os.environ.get(
     "DATABASE_URL",
-    "postgresql://ubidex:ubidex@postgres:5432/superset"
+    "postgresql://ubidex:ubidex@postgres:5432/superset",
 )
 
-# Redis for caching
+# Redis for caching (supports optional password, e.g. Railway Redis)
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
-REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
+REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
+REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD")
+
 CACHE_CONFIG = {
     "CACHE_TYPE": "RedisCache",
     "CACHE_DEFAULT_TIMEOUT": 300,
@@ -19,6 +21,10 @@ CACHE_CONFIG = {
     "CACHE_REDIS_HOST": REDIS_HOST,
     "CACHE_REDIS_PORT": REDIS_PORT,
 }
+
+if REDIS_PASSWORD:
+    # Needed when Redis requires AUTH (e.g. managed services)
+    CACHE_CONFIG["CACHE_REDIS_PASSWORD"] = REDIS_PASSWORD
 
 # Feature flags
 FEATURE_FLAGS = {
