@@ -63,6 +63,29 @@ SQLLAB_ASYNC_TIME_LIMIT_SEC = 600  # 10 minutes for async queries
 # Without this, Dashboard/Chart queries will timeout after 60 seconds
 SUPERSET_WEBSERVER_TIMEOUT = 600  # 10 minutes for web server requests (default is 60)
 
+# Celery configuration for async queries
+# If Celery is not properly configured, queries may hang
+# Disable async execution if Celery is not available
+CELERY_CONFIG = {
+    "broker_url": os.environ.get("REDIS_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/0"),
+    "result_backend": os.environ.get("REDIS_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/0"),
+    "task_serializer": "json",
+    "accept_content": ["json"],
+    "result_serializer": "json",
+    "timezone": "UTC",
+    "enable_utc": True,
+}
+
+# If Redis password is set, add it to Celery config
+if REDIS_PASSWORD:
+    redis_url = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
+    CELERY_CONFIG["broker_url"] = redis_url
+    CELERY_CONFIG["result_backend"] = redis_url
+
+# Disable async queries if Celery is not properly configured
+# Set to False to use synchronous execution (slower but more reliable)
+SQLLAB_ASYNC_TIME_LIMIT_SEC = None  # Disable async if Celery is not working
+
 # Note: 
 # 1. Chart query timeout can be set per database connection in Superset UI:
 #    Data → Databases → Edit your database → Advanced → "Query Timeout"
