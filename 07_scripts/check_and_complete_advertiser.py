@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""
+Проверка и завершение обновления advertiser для всех записей до 2 декабря 2025
+"""
+import sys
+import io
+from sqlalchemy import create_engine, text
+from db_utils import get_postgres_connection_string
+
+# Fix encoding for Windows console
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+print("=" * 80)
+print("ПРОВЕРКА И ЗАВЕРШЕНИЕ ОБНОВЛЕНИЯ ADVERTISER")
+print("=" * 80)
+print()
+
+# Connect to PostgreSQL
+print("Подключение к PostgreSQL...")
+pg_uri = get_postgres_connection_string()
+engine = create_engine(pg_uri)
+
+with engine.connect() as conn:
+    # Check current state
+    result = conn.execute(text("""
+        SELECT 
+            COUNT(*) as total,
+            COUNT(CASE WHEN advertiser IS NOT NULL THEN 1 END) as with_advertiser,
+            COUNT(CASE WHEN advertiser IS NULL THEN 1 END) as without_advertiser,
+            COUNT(CASE WHEN event_date < '2025-12-02' AND advertiser IS NULL THEN 1 END) as to_update_before_dec2,
+            COUNT(CASE WHEN event_date >= '2025-12-02' AND advertiser IS NULL THEN 1 END) as to_update_after_dec2
+        FROM public.user_events
+    """))
+    stats = result.fetchone()
+    print(f"   Всего записей: {stats[0]:,}")
+    print(f"   С advertiser: {stats[1]:,}")
+    print(f"   Без advertiser: {stats[2]:,}")
+    print(f"   К обновлению (до 2.12.2025): {stats[3]:,}")
+    print(f"   К обновлению (с 2.12.2025): {stats[4]:,}")
+    print()
+    
+    # Check distribution
+    result = conn.execute(text("""
+        SELECT advertiser, COUNT(*) as cnt 
+        FROM public.user_events 
+        WHERE advertiser IS NOT NULL 
+        GROUP BY advertiser 
+        ORDER BY cnt DESC
+    """))
+    print("Распределение по advertiser:")
+    for row in result:
+        print(f"   {row[0]}: {row[1]:,} записей")
+    print()
+    
+    if stats[3] > 0:
+        print("Обновляю записи до 2 декабря 2025 (advertiser = '4rabet')...")
+        print("   Это может занять несколько минут...")
+        
+        # Update in chunks by date ranges
+        from datetime import datetime, timedelta
+        total_updated = 0
+        chunk_days = 30  # Update 30 days at a time (больше чанки, так как места больше)
+        
+        # Get date range
+        result = conn.execute(text("""
+            SELECT MIN(event_date) as min_date, MAX(event_date) as max_date
+            FROM public.user_events
+            WHERE event_date < '2025-12-02' AND advertiser IS NULL
+        """))
+        date_range = result.fetchone()
+        
+        if date_range[0]:
+            current_date = date_range[0]
+            end_date = min(date_range[1] or datetime(2025, 12, 2), datetime(2025, 12, 2))
+            
+            while current_date < end_date:
+                chunk_end = min(current_date + timedelta(days=chunk_days), end_date)
+                
+                try:
+                    result = conn.execute(text("""
+                        UPDATE public.user_events 
+                        SET advertiser = '4rabet' 
+                        WHERE event_date >= :start_date 
+                          AND event_date < :end_date
+                          AND advertiser IS NULL
+                    """), {
+                        'start_date': current_date,
+                        'end_date': chunk_end
+                    })
+                    conn.commit()
+                    chunk_updated = result.rowcount
+                    total_updated += chunk_updated
+                    print(f"   Обновлено: {total_updated:,}/{stats[3]:,} ({current_date.date()} - {chunk_end.date()})", end='\r')
+                except Exception as e:
+                    print(f"\n   ⚠ Ошибка при обновлении {current_date.date()}: {e}")
+                    print("   Продолжаю...")
+                    conn.rollback()
+                
+                current_date = chunk_end
+            
+            print()
+            print(f"   ✓ Всего обновлено записей: {total_updated:,}")
+        else:
+            print("   Нет записей для обновления")
+    else:
+        print("   ✓ Все записи до 2 декабря уже обновлены")
+    
+    print()
+    
+    # Final verification
+    result = conn.execute(text("""
+        SELECT advertiser, COUNT(*) as cnt 
+        FROM public.user_events 
+        WHERE advertiser IS NOT NULL 
+        GROUP BY advertiser 
+        ORDER BY cnt DESC
+    """))
+    print("Финальное распределение по advertiser:")
+    for row in result:
+        print(f"   {row[0]}: {row[1]:,} записей")
+
+print()
+print("=" * 80)
+print("ГОТОВО!")
+print("=" * 80)
+

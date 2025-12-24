@@ -14,6 +14,11 @@ from db_utils import get_sqlite_path, get_postgres_connection_string
 # Parse arguments
 parser = argparse.ArgumentParser(description='Migrate data from SQLite to PostgreSQL')
 parser.add_argument('--yes', '-y', action='store_true', help='Automatically answer yes to all prompts')
+parser.add_argument(
+    '--resume',
+    action='store_true',
+    help='Resume into existing user_events table without dropping it (use if previous run stopped part-way)',
+)
 args = parser.parse_args()
 
 print("=" * 80)
@@ -121,26 +126,45 @@ create_indexes_sql = [
 ]
 
 with postgres_engine.connect() as conn:
-    # Drop table if exists (optional, for clean migration)
-    if args.yes:
-        # Check if table exists
-        inspector = inspect(postgres_engine)
-        if 'user_events' in inspector.get_table_names():
-            conn.execute(text("DROP TABLE IF EXISTS user_events CASCADE;"))
+    inspector = inspect(postgres_engine)
+    table_names = inspector.get_table_names()
+    table_exists = 'user_events' in table_names
+
+    if args.resume:
+        # Режим возобновления: не трогаем существующую таблицу, только убеждаемся, что она есть
+        if not table_exists:
+            print("⚠ Режим --resume, но таблица user_events в PostgreSQL не найдена.")
+            print("  Будет создана новая таблица и миграция начнется с нуля.")
+            conn.execute(text(create_table_sql))
             conn.commit()
-            print("✓ Старая таблица удалена")
+            print("✓ Таблица создана")
     else:
-        drop_existing = input("Удалить существующую таблицу user_events в PostgreSQL? (y/N): ")
-        if drop_existing.lower() == 'y':
-            conn.execute(text("DROP TABLE IF EXISTS user_events CASCADE;"))
+        # Обычный режим: можно удалить старую таблицу
+        if args.yes:
+            if table_exists:
+                conn.execute(text("DROP TABLE IF EXISTS user_events CASCADE;"))
+                conn.commit()
+                print("✓ Старая таблица удалена")
+            conn.execute(text(create_table_sql))
             conn.commit()
-            print("✓ Старая таблица удалена")
-    
-    # Create table
-    conn.execute(text(create_table_sql))
-    conn.commit()
-    print("✓ Таблица создана")
-    
+            print("✓ Таблица создана")
+        else:
+            if table_exists:
+                drop_existing = input("Удалить существующую таблицу user_events в PostgreSQL? (y/N): ")
+                if drop_existing.lower() == 'y':
+                    conn.execute(text("DROP TABLE IF EXISTS user_events CASCADE;"))
+                    conn.commit()
+                    print("✓ Старая таблица удалена")
+                    conn.execute(text(create_table_sql))
+                    conn.commit()
+                    print("✓ Таблица создана")
+                else:
+                    print("Используем уже существующую таблицу user_events")
+            else:
+                conn.execute(text(create_table_sql))
+                conn.commit()
+                print("✓ Таблица создана")
+
     # Create indexes (will be created after data import for better performance)
     print("  (Индексы будут созданы после импорта данных)")
 
@@ -160,11 +184,16 @@ with postgres_engine.connect() as conn:
     existing_count = result.fetchone()[0]
     if existing_count > 0:
         print(f"В PostgreSQL уже есть {existing_count:,} записей")
-        resume = input("Продолжить миграцию? (y/N): ")
-        if resume.lower() != 'y':
-            print("Миграция отменена")
-            sys.exit(0)
-        offset = existing_count
+        if args.yes or args.resume:
+            # Автоматически продолжаем миграцию без вопросов
+            offset = existing_count
+            print(f"Продолжаем миграцию с OFFSET={offset:,}")
+        else:
+            resume = input("Продолжить миграцию? (y/N): ")
+            if resume.lower() != 'y':
+                print("Миграция отменена")
+                sys.exit(0)
+            offset = existing_count
 
 # Use pandas for efficient chunking
 query = "SELECT * FROM user_events ORDER BY event_date LIMIT ? OFFSET ?"
@@ -180,14 +209,29 @@ with tqdm(total=total_rows, initial=offset, unit="rows", unit_scale=True) as pba
             break
         
         # Write to PostgreSQL
-        chunk_df.to_sql(
-            'user_events',
-            postgres_engine,
-            if_exists='append',
-            index=False,
-            method='multi',
-            chunksize=10000
-        )
+        try:
+            chunk_df.to_sql(
+                'user_events',
+                postgres_engine,
+                if_exists='append',
+                index=False,
+                method='multi',
+                chunksize=10000
+            )
+        except Exception as e:
+            print()
+            print("=" * 80)
+            print(f"ОШИБКА при вставке чанка offset={offset:,}, size={len(chunk_df)}")
+            # Пытаемся вывести более короткое сообщение без огромного SQL/parameters
+            err_msg = str(e)
+            if len(err_msg) > 1000:
+                err_msg_short = err_msg[:1000] + "... [truncated]"
+            else:
+                err_msg_short = err_msg
+            print(err_msg_short)
+            print("Миграция прервана из-за ошибки. Проверьте сообщение выше.")
+            print("=" * 80)
+            sys.exit(1)
         
         total_migrated += len(chunk_df)
         offset += CHUNK_SIZE

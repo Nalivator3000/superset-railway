@@ -4,3 +4,7 @@ psycopg2-binary>=2.9.0
 requests>=2.31.0
 tqdm>=4.65.0
 
+# Опционально: для загрузки данных из Google Sheets
+# gspread>=5.0.0
+# google-auth>=2.0.0
+
