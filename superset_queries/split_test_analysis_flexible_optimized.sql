@@ -18,11 +18,12 @@
 -- 4. Для очень больших данных добавьте фильтр по дате прямо в SQL (раскомментируйте строки)
 
 WITH 
--- 1. Настройки групп (измените здесь при необходимости)
+-- 1. Настройки групп
+-- Разделение: Control = 0-7, Test = 8-9a-z
 char_expansion AS (
     SELECT 
-        '0,1,2,3,4,5,6,7' as control_chars_expanded,
-        '8,9,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z' as test_chars_expanded,
+        '0,1,2,3,4,5,6,7' as control_chars_expanded,  -- Control группа
+        '8,9,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z' as test_chars_expanded,  -- Test группа
         1 as char_position  -- Позиция символа с конца (1 = последний)
 ),
 
@@ -40,26 +41,20 @@ deposits_with_groups AS (
             ELSE NULL
         END as char_at_position,
         -- Определяем группу (оптимизировано - без CROSS JOIN)
-        -- Для 36 символов (0-9a-z) точное распределение 25/75:
-        -- Control: 9 символов из 36 = 25% (0-8)
-        -- Test: 27 символов из 36 = 75% (9a-z)
+        -- Разделение по требованию:
+        -- Control: 0-7 (8 символов)
+        -- Test: 8-9a-z (28 символов)
         CASE 
-            -- Контрольная группа: последний символ 0-8 (9 символов = 25%)
+            -- Контрольная группа: последний символ 0-7
             WHEN LENGTH(ue.external_user_id) >= 1 
-                 AND LOWER(RIGHT(ue.external_user_id, 1)) IN ('0', '1', '2', '3', '4', '5', '6', '7', '8') 
+                 AND LOWER(RIGHT(ue.external_user_id, 1)) IN ('0', '1', '2', '3', '4', '5', '6', '7') 
             THEN 'Control'
-            -- Тестовая группа: последний символ 9a-z (27 символов = 75%)
+            -- Тестовая группа: последний символ 8-9a-z
             WHEN LENGTH(ue.external_user_id) >= 1 
-                 AND LOWER(RIGHT(ue.external_user_id, 1)) IN ('9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z') 
+                 AND LOWER(RIGHT(ue.external_user_id, 1)) IN ('8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z') 
             THEN 'Test'
             ELSE 'Unknown'
         END as test_group
-        -- АЛЬТЕРНАТИВА: Использовать хеш для гарантированного 25/75 (независимо от распределения символов):
-        -- CASE 
-        --     WHEN ABS(HASHTEXT(ue.external_user_id)) % 4 < 1  -- 0 = 25%
-        --     THEN 'Control'
-        --     ELSE 'Test'  -- 1, 2, 3 = 75%
-        -- END as test_group
     FROM public.user_events ue
     WHERE ue.event_type = 'deposit'
       AND ue.converted_amount > 0

@@ -26,14 +26,14 @@ deposits_with_groups AS (
         ue.converted_amount as deposit_amount,
         ue.advertiser,
         -- Определяем группу по последнему символу user_id
-        -- Для 36 символов (0-9a-z) точное распределение 25/75:
-        -- Control: 0-8 (9 символов = 25%)
-        -- Test: 9a-z (27 символов = 75%)
+        -- Разделение по требованию:
+        -- Control: 0-7 (8 символов)
+        -- Test: 8-9a-z (28 символов)
         CASE 
-            -- Контрольная группа: последний символ 0-8 (9 символов = 25%)
-            WHEN RIGHT(LOWER(ue.external_user_id), 1) IN ('0', '1', '2', '3', '4', '5', '6', '7', '8') THEN 'Control'
-            -- Тестовая группа: последний символ 9a-z (27 символов = 75%)
-            WHEN RIGHT(LOWER(ue.external_user_id), 1) IN ('9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z') THEN 'Test'
+            -- Контрольная группа: последний символ 0-7
+            WHEN RIGHT(LOWER(ue.external_user_id), 1) IN ('0', '1', '2', '3', '4', '5', '6', '7') THEN 'Control'
+            -- Тестовая группа: последний символ 8-9a-z
+            WHEN RIGHT(LOWER(ue.external_user_id), 1) IN ('8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z') THEN 'Test'
             ELSE 'Unknown'
         END as test_group
     FROM public.user_events ue
