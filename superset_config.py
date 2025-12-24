@@ -55,9 +55,13 @@ SQL_MAX_ROW = 1000000
 
 # Query timeout settings (in seconds)
 # Increase timeout for long-running queries
-# These are the only timeout settings that are reliably supported
 SQLLAB_TIMEOUT = 600  # 10 minutes for SQL Lab queries (default is 60)
 SQLLAB_ASYNC_TIME_LIMIT_SEC = 600  # 10 minutes for async queries
+
+# Web server timeout - CRITICAL for Dashboard and Chart queries
+# This is the timeout for HTTP requests from the web server
+# Without this, Dashboard/Chart queries will timeout after 60 seconds
+SUPERSET_WEBSERVER_TIMEOUT = 600  # 10 minutes for web server requests (default is 60)
 
 # Note: 
 # 1. Chart query timeout can be set per database connection in Superset UI:
