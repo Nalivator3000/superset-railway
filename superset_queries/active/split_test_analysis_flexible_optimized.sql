@@ -146,7 +146,7 @@ group_comparison AS (
         MAX(event_date) as max_date
     FROM filtered_deposits
     GROUP BY test_group
-)
+),
 
 -- 8. Добавляем строки сравнения
 comparison_data AS (
