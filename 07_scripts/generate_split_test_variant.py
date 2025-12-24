@@ -73,12 +73,16 @@ def generate_sql(char_position, control_chars, test_chars, exclude_top_percent=0
     control_chars_expanded = ','.join(control_list)
     test_chars_expanded = ','.join(test_list)
     
+    # Вычисляем проценты для информации
+    control_percent = (len(control_list) / 36.0 * 100) if len(control_list) + len(test_list) == 36 else (len(control_list) / (len(control_list) + len(test_list)) * 100)
+    test_percent = (len(test_list) / 36.0 * 100) if len(control_list) + len(test_list) == 36 else (len(test_list) / (len(control_list) + len(test_list)) * 100)
+    
     # Генерируем SQL
     sql_template = f"""-- Анализ сплит-теста: сравнение контрольной и тестовой групп
 -- Настройки:
 -- - Позиция символа с конца: {char_position}
--- - Контрольная группа: {control_chars} ({len(control_list)} символов)
--- - Тестовая группа: {test_chars} ({len(test_list)} символов)
+-- - Контрольная группа: {control_chars} ({len(control_list)} символов, ~{control_percent:.1f}%)
+-- - Тестовая группа: {test_chars} ({len(test_list)} символов, ~{test_percent:.1f}%)
 -- - Исключить топ {exclude_top_percent}% самых активных
 -- - Исключить низ {exclude_bottom_percent}% самых неактивных
 

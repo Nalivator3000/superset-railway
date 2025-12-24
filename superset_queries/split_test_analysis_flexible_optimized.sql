@@ -40,33 +40,25 @@ deposits_with_groups AS (
             ELSE NULL
         END as char_at_position,
         -- Определяем группу (оптимизировано - без CROSS JOIN)
-        -- ВАРИАНТ 1: По последнему символу (если user_id содержит буквы)
-        -- Control: 0-7 (8 из 36 = ~22%, близко к 25%)
-        -- Test: 8-9a-z (28 из 36 = ~78%, близко к 75%)
+        -- Для 36 символов (0-9a-z) точное распределение 25/75:
+        -- Control: 9 символов из 36 = 25% (0-8)
+        -- Test: 27 символов из 36 = 75% (9a-z)
         CASE 
-            -- Контрольная группа: последний символ 0-7
+            -- Контрольная группа: последний символ 0-8 (9 символов = 25%)
             WHEN LENGTH(ue.external_user_id) >= 1 
-                 AND LOWER(RIGHT(ue.external_user_id, 1)) IN ('0', '1', '2', '3', '4', '5', '6', '7') 
+                 AND LOWER(RIGHT(ue.external_user_id, 1)) IN ('0', '1', '2', '3', '4', '5', '6', '7', '8') 
             THEN 'Control'
-            -- Тестовая группа: последний символ 8-9a-z
+            -- Тестовая группа: последний символ 9a-z (27 символов = 75%)
             WHEN LENGTH(ue.external_user_id) >= 1 
-                 AND LOWER(RIGHT(ue.external_user_id, 1)) IN ('8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z') 
+                 AND LOWER(RIGHT(ue.external_user_id, 1)) IN ('9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z') 
             THEN 'Test'
             ELSE 'Unknown'
         END as test_group
-        -- ВАРИАНТ 2: Если user_id содержит ТОЛЬКО цифры, используйте хеш для равномерного распределения:
+        -- АЛЬТЕРНАТИВА: Использовать хеш для гарантированного 25/75 (независимо от распределения символов):
         -- CASE 
         --     WHEN ABS(HASHTEXT(ue.external_user_id)) % 4 < 1  -- 0 = 25%
         --     THEN 'Control'
         --     ELSE 'Test'  -- 1, 2, 3 = 75%
-        -- END as test_group
-        -- ВАРИАНТ 3: Если user_id содержит ТОЛЬКО цифры, используйте другой диапазон:
-        -- CASE 
-        --     WHEN LOWER(RIGHT(ue.external_user_id, 1)) IN ('0', '1', '2')  -- 3 из 10 = 30%
-        --     THEN 'Control'
-        --     WHEN LOWER(RIGHT(ue.external_user_id, 1)) IN ('3', '4', '5', '6', '7', '8', '9')  -- 7 из 10 = 70%
-        --     THEN 'Test'
-        --     ELSE 'Unknown'
         -- END as test_group
     FROM public.user_events ue
     WHERE ue.event_type = 'deposit'
